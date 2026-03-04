@@ -3,12 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-static void wait_close()
-{
-    printf("\nPress any key to continue . . .");
-    getchar();
-}
-
 int main(int argc, char** args)
 {
     char address[19];
@@ -18,10 +12,10 @@ int main(int argc, char** args)
         printf("IP: ");
         if (fgets(address, 19, stdin) == 0)
         {
-            printf("Error reading input.");
-            wait_close();
+            printf("Error reading input.\n");
             return 1;
         }
+        printf("\n");
     }
     else
     {
@@ -30,19 +24,16 @@ int main(int argc, char** args)
 
     int err;
     Network network;
-    if (err = parse_address(address, &network))
+    if (err = parse_subnet_address(address, &network))
     {
         if (err == INVALID_SUBNET)
         {
             printf("Invalid subnet: Network prefix cannot be less than class prefix\n");
-            wait_close();
             return 0;
         }
         return err;
     }
 
-    printf("\n");
     print_network_info(&network);
-    wait_close();
     return 0;
 }

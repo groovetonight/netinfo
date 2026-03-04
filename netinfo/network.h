@@ -25,7 +25,7 @@ typedef struct
     NetworkClass class;
 } Network;
 
-int parse_address(const char* address, Network* network);
-void format_address(uint32_t ipv4, char** address);
+int parse_subnet_address(const char* subnet_address, Network* network);
+int format_address(uint32_t ipv4, char** address);
 NetworkClass get_network_class(uint32_t ipv4);
 void print_network_info(Network* network);

@@ -5,44 +5,81 @@
 #include <string.h>
 #include <math.h>
 
-int parse_address(const char* address, Network* network)
+static uint32_t parse_network_address(char *addr);
+
+int parse_subnet_address(const char* subnet_address, Network* network)
 {
-    char* ptr = strchr(address, '/');
-    char* ip = (char*)calloc(16, sizeof(char));
-    if (ip == 0) return FAILED_ALLOCATION;
+    char* addr = (char*)calloc(16, sizeof(char));
+
+    if (addr == 0)
+    {
+        return FAILED_ALLOCATION;
+    }
+    
+    char* prefix_start = strrchr(subnet_address, '/');
     uint8_t prefix = 0;
-    if (ptr == 0) memcpy(ip, address, 15);
+
+    if (prefix_start == 0)
+    {
+        memcpy(addr, subnet_address, 15);
+    }
     else
     {
-        unsigned long long pos = ptr - address;
-        memcpy(ip, address, pos);
-        char* p = (char*)calloc(3, sizeof(char));
-        if (p == 0) return FAILED_ALLOCATION;
-        memcpy(p, address + pos + 1, 2);
-        int r = sscanf(p, "%hhu", &prefix);
-        free(p);
-        if (r != 1) return FAILED_SCAN;
+        size_t addr_len = prefix_start - subnet_address;
+        memcpy(addr, subnet_address, addr_len);
+
+        char* prefix_string = (char*)calloc(3, sizeof(char));
+        if (prefix_string == 0)
+        {
+            return FAILED_ALLOCATION;
+        }
+
+        memcpy(prefix_string, subnet_address + addr_len + 1, 2);
+
+        if (sscanf(prefix_string, "%hhu", &prefix) != 1)
+        {
+            free(prefix_string);
+            return FAILED_SCAN;
+        }
+
+        free(prefix_string);
     }
-    uint8_t octet[4];
-    int r = sscanf(ip, "%hhu.%hhu.%hhu.%hhu", &octet[3], &octet[2], &octet[1], &octet[0]);
-    free(ip);
-    if (r != 4) return FAILED_SCAN;
-    network->ipv4 = octet[0] | (octet[1] << 8) | (octet[2] << 16) | (octet[3] << 24);
+
+    uint32_t ipv4 = parse_network_address(addr);
+    free(addr); // Free should really be handled by the caller
+
+    if (!ipv4) {
+        return FAILED_SCAN;
+    }
+
+    network->ipv4 = ipv4;
     network->class = get_network_class(network->ipv4);
     network->prefix.length = prefix != 0 ? prefix : network->class.prefix.length;
     network->prefix.mask = 0xFFFFFFFF << (32 - network->prefix.length);
-    if (network->prefix.length < network->class.prefix.length) return INVALID_SUBNET;
+
+    if (network->prefix.length < network->class.prefix.length)
+    {
+        return INVALID_SUBNET;
+    }
+    
     return 0;
 }
 
-void format_address(uint32_t ipv4, char** address)
+int format_address(uint32_t ipv4, char** address)
 {
-    unsigned char octet1 = ipv4 >> 24;
-    unsigned char octet2 = (ipv4 & 0xFF0000) >> 16;
-    unsigned char octet3 = (ipv4 & 0xFF00) >> 8;
-    unsigned char octet4 = ipv4 & 0xFF;
+    uint8_t octet1 = ipv4 >> 24;
+    uint8_t octet2 = (ipv4 & 0xFF0000) >> 16;
+    uint8_t octet3 = (ipv4 & 0xFF00) >> 8;
+    uint8_t octet4 = ipv4 & 0xFF;
+
     *address = (char*)calloc(16, sizeof(char));
-    snprintf(*address, 16, "%u.%u.%u.%u", octet1, octet2, octet3, octet4);
+
+    if (*address == 0) {
+        return FAILED_ALLOCATION;
+    }
+
+    int bytes = snprintf(*address, 16, "%hhu.%hhu.%hhu.%hhu", octet1, octet2, octet3, octet4);
+    return bytes > 0 ? 0 : FAILED_SCAN;
 }
 
 NetworkClass get_network_class(uint32_t ipv4)
@@ -103,4 +140,16 @@ void print_network_info(Network* network)
     printf("    Broadcast  : %s\n", broadcast_address);
     free(network_address);
     free(broadcast_address);
+}
+
+static uint32_t parse_network_address(char *addr)
+{
+    uint8_t octet[4];
+
+    if (sscanf(addr, "%hhu.%hhu.%hhu.%hhu", &octet[3], &octet[2], &octet[1], &octet[0]) != 4)
+    {
+        return 0;
+    }
+
+    return octet[0] | (octet[1] << 8) | (octet[2] << 16) | (octet[3] << 24);
 }
