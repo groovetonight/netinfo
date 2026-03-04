@@ -1,48 +1,37 @@
 #include "network.h"
 
 #include <stdio.h>
-#include <string.h>
-
-static void wait_close()
-{
-    printf("\nPress any key to continue . . .");
-    getchar();
-}
 
 int main(int argc, char** args)
 {
-    char address[19];
-    if (argc == 1)
+    Network network;
+    int has_error = 0;
+    char error_message[256];
+    if (argc > 1)
     {
-        printf("Type an IPv4 address in the field below. It can include a subnet prefix.\n");
-        printf("IP: ");
-        if (fgets(address, 19, stdin) == 0)
-        {
-            printf("Error reading input.");
-            wait_close();
-            return 1;
-        }
+        has_error = read_subnet_address(&network, args[1], error_message);
     }
     else
     {
-        strncpy(address, args[1], 18);
-    }
-
-    int err;
-    Network network;
-    if (err = parse_address(address, &network))
-    {
-        if (err == INVALID_SUBNET)
+        printf("Type an IPv4 address in the field below. It can include a subnet prefix.\n");
+        printf("IP: ");
+        
+        if (!(has_error = read_subnet_address(&network, 0, error_message)))
         {
-            printf("Invalid subnet: Network prefix cannot be less than class prefix\n");
-            wait_close();
-            return 0;
+            printf("\n");
         }
-        return err;
     }
 
-    printf("\n");
-    print_network_info(&network);
-    wait_close();
+    if (has_error)
+    {
+        fprintf(stderr, "Error: %s\n", error_message);
+        return 1;
+    }
+
+    if (print_network_info(&network))
+    {
+        fprintf(stderr, "Error: Failed to allocate enough memory");
+    }
+
     return 0;
 }
