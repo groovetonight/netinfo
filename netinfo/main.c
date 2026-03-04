@@ -28,6 +28,10 @@ int main(int argc, char** args)
         return 1;
     }
 
-    print_network_info(&network);
+    if (print_network_info(&network))
+    {
+        fprintf(stderr, "Error: Failed to allocate enough memory");
+    }
+
     return 0;
 }
